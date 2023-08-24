@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">	
+	
+	<title>Phantyr</title>
+	
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+	<script src="leaflet-heat.js"></script>
+	<script src="L.Control.MousePosition.js"></script>
+	<script src="https://d3js.org/d3.v5.min.js" charset="utf-8"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.4.0/leaflet.js"></script>
+	<script src="https://d3js.org/d3-hexbin.v0.2.min.js"></script>
+	<script src="https://unpkg.com/@asymmetrik/leaflet-d3@4/dist/leaflet-d3.js" charset="utf-8"></script>
+	<script src="https://unpkg.com/h3-js"></script>
+	<script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+	<script src='https://underscorejs.org/underscore.js'></script>
+
+	<link  rel="stylesheet"  href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"/>
+	<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+
+	<script src="leaflet-partition.min.js"></script>
+
+
+
+
+	<style>
+		html, body {
+			height: 100%;
+			margin: 0;
+		}
+		.leaflet-container {
+			height: 2864px;
+			width: 2188px;
+			max-width: 100%;
+			max-height: 100%;
+		}
+		.hexbin-hexagon {
+			stroke: #000;
+			stroke-width: .5px;
+		}
+	</style>
+
+	
+</head>
+<body>
+
+<div id='map'></div>
+
+
+
+<script>
+
+	var yx = L.latLng;
+
+
+	function xy(x, y) {
+		if (L.Util.isArray(x)) { // When doing xy([x, y]);
+			return yx(x[1], x[0]);
+		}
+		return yx(y, x); // When doing xy(x, y);
+	}
+
+	var dangerIcon = L.icon({
+		iconUrl: 'https://game-cdn.appsample.com/gim/markers-v40/o64.png',
+		iconSize: [38, 55],
+		iconAnchor: [22, 54],
+		popupAnchor: [-3, -50],
+	});
+
+
+	var c_estados = L.layerGroup();
+	var c_grandes = L.layerGroup();
+	var c_medias = L.layerGroup();
+	var c_pequenas = L.layerGroup();
+
+	var bounds = [xy(0, 0), xy(2188, 2864)];
+	var std = L.imageOverlay("https://cdn.discordapp.com/attachments/845348755997851698/861385224457682944/mapadomundoFinal.jpg", bounds);
+	var heat = L.imageOverlay("https://cdn.discordapp.com/attachments/845335885414924358/879713194136969326/calor.png", bounds, {opacity: 0.5});
+	var dominion = L.imageOverlay("https://cdn.discordapp.com/attachments/884441131667054592/885220343957041192/mapaDominios_copy.jpg", bounds, {opacity: 0.5});
+
+
+	var utanbar    = xy(480*2.188, 115*2.864);
+	var fortuna_do_vale    = xy(467.5*2.188, 172.5*2.864);
+	var rin_kakiri = xy(400, 131);
+	var cidade_safira    = xy(1095, 179);
+
+
+
+	var mUtanbar = L.marker(utanbar, {draggable:true}).addTo(c_estados).bindPopup('<b>Utanbar</b><br>Domínio Utanbar<br>Habitantes: 2000<br>40% elfos, 60% outros<br>Mapa: <a href="https://listverse.com/wp-content/uploads/2016/12/3-24.jpg" target="_blank">Clique!</a><br>História:<br>Eventos:');
+	var mFortuna = L.marker(fortuna_do_vale).addTo(c_pequenas).bindPopup('Fortuna do Vale');
+	var mSafira = L.marker(cidade_safira).addTo(c_medias).bindPopup('Cidade Safira');
+	//var mDanger = L.marker([69,420], {icon: dangerIcon}).addTo(village).bindPopup('Roca de Flyby');
+
+
+	var map = L.map('map', {
+		crs: L.CRS.Simple,
+		minZoom: -2,
+		maxZoom: 2,
+		layers: [std]
+	});
+	
+
+	var baseMaps = {
+
+	};
+
+
+
+	//var travel = L.polyline([utanbar, rin_kakiri]).addTo(map);
+
+	
+
+
+	map.setView(xy(1000, 1000), 1);
+
+
+	//L.control.mousePosition().addTo(map);
+
+	
+
+
+
+	//HexGrid
+	var bbox = [-50,-50,3000,3000];
+	var cellSide = 0.5;
+	var options = {units: 'degrees'};
+	var hexgrid = turf.hexGrid(bbox, cellSide, options);
+
+	//Polygram that will contain the hexagons
+	let poly1 = turf.polygon([[
+	[0,0],
+	[0,2864],
+	[2188, 2864],
+	[2188,0],
+	[0,0]
+	]]);
+
+	_.each(hexgrid.features, function(hex){
+		var intersection = turf.intersect(poly1, hex.geometry);
+		if(intersection)
+		{
+			hex.geometry = intersection.geometry;
+		}else
+		{
+			hex.geometry ={type: "Polygon", coordinates: []}
+		}
+	})
+
+
+	var hexmap = L.geoJSON(hexgrid, {
+	style: function (feature)
+	{
+		return {weight: 1};
+	}
+	});
+	L.geoJSON(poly1);
+
+
+	var overlayMaps = {
+		"Cidades Estado": c_estados,
+		"Cidades Grandes": c_grandes,
+		"Cidades Médias": c_medias,
+		"Cidades Pequenas": c_pequenas,
+		"Heat":  heat,
+		"Domínios": dominion
+	};
+
+	var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+	layerControl.addOverlay(hexmap, 'Grid (WIP)');
+	
+
+	// add Leaflet-Geoman controls with some options to the map  
+	map.pm.addControls({  
+		position: 'topleft',  
+		drawCircleMarker: false,
+		rotateMode: false,
+	});  
+
+
+	const hexOption = {
+  	type: "hexagon",
+  	athStyleOption: {
+    color: "black"
+  }
+};
+
+
+	const partition = L.partition(hexOption);
+	partition.setData([		
+		[-100,-100],
+		[3000,3000]
+]);
+	layerGroup = partition.addTo(map);
+	//layerControl.addOverlay(layerGroup, 'Grid a(WIP)');
+
+</script>
+
+
+</body>
+
+
+
+
+</html>
+
+
+
